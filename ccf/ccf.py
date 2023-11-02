@@ -28,6 +28,6 @@ node_rows_to_drop = node_outliers.any(axis=1)
 node_data = node_data.drop(node_data[node_rows_to_drop].index)
 edge_data = edge_data.drop(edge_data[edge_rows_to_drop].index)
 
-sout = pd.read_csv('sout.csv')
+print("111")
 
 
