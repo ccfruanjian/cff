@@ -30,5 +30,3 @@ edge_data = edge_data.drop(edge_data[edge_rows_to_drop].index)
 print(node_data)
 
 1111
-21
-1
