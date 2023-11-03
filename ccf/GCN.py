@@ -7,8 +7,8 @@ from torch_geometric.nn import GCNConv
 class Net(torch.nn.Module):
     def __init__(self):
         super(Net, self).__init__()
-        self.conv1 = GCNConv(data.num_features, 16, normalize=True)
-        self.conv2 = GCNConv(16, 2, normalize=True)
+        self.conv1 = GCNConv(data.num_features, 64, normalize=True)
+        self.conv2 = GCNConv(64, 2, normalize=True)
         # self.conv1 = ChebConv(data.num_features, 16, K=2)
         # self.conv2 = ChebConv(16, data.num_features, K=2)
 
