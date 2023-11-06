@@ -56,7 +56,7 @@ h_size=64
 num_heads=8
 edge_dim=2
 model=GAT(in_feats=in_size,h_feats=h_size,out_feats=out_size,edge_dim=edge_dim)
-
+model.to(device)
 for i in range(len(edge)):
     sorted_node = node[i].sort_values(by='geohash_id')
     x = sorted_node.iloc[:, 1:].values
@@ -69,13 +69,13 @@ for i in range(len(edge)):
     # 边的尾结点
     edge_index2 = edges[['geohash6_point2']].values.astype(int)
     edge_attr = edges[['F_1', 'F_2']].values
-    x = torch.FloatTensor(x)
+    x = torch.FloatTensor(x).to(device)
     edge_index = np.array([edge_index1, edge_index2])
-    edge_index = torch.LongTensor(edge_index).reshape(2,-1)
-    edge_attr = torch.from_numpy(edge_attr).float()
-    print(x.shape)
-    print(edge_index.shape)
-    print(edge_attr.shape)
+    edge_index = torch.LongTensor(edge_index).reshape(2,-1).to(device)
+    edge_attr = torch.from_numpy(edge_attr).float().to(device)
+    # print(x.shape)
+    # print(edge_index.shape)
+    # print(edge_attr.shape)
     node_emb=model(x,edge_index,edge_attr)
     print(node_emb)
 
