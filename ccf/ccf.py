@@ -4,7 +4,7 @@ from sklearn import preprocessing
 from torch.utils.data import Dataset, DataLoader
 from torch_geometric.data import Data
 import torch.nn.functional as F
-from GAT import GATE
+from GAT import GAT
 import sklearn.datasets as sd
 import sklearn.model_selection as sms
 import matplotlib.pyplot as plt
@@ -52,8 +52,10 @@ for _, edge_data in grouped_edge_data:
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 in_size=35
 out_size=2
-edge_weight_dim=2
-model=GATE(in_channels=in_size,out_channels=out_size,edge_weight_dim=edge_weight_dim,num_heads=1)
+h_size=64
+num_heads=8
+edge_dim=2
+model=GAT(in_feats=in_size,h_feats=h_size,out_feats=out_size,edge_dim=edge_dim)
 
 for i in range(len(edge)):
     sorted_node = node[i].sort_values(by='geohash_id')
@@ -69,7 +71,7 @@ for i in range(len(edge)):
     edge_attr = edges[['F_1', 'F_2']].values
     x = torch.FloatTensor(x)
     edge_index = np.array([edge_index1, edge_index2])
-    edge_index = torch.LongTensor(edge_index)
+    edge_index = torch.LongTensor(edge_index).reshape(2,-1)
     edge_attr = torch.from_numpy(edge_attr).float()
     print(x.shape)
     print(edge_index.shape)
