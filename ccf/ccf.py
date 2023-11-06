@@ -2,8 +2,9 @@ import numpy as np
 import pandas as pd
 from sklearn import preprocessing
 from torch.utils.data import Dataset, DataLoader
-
-import GCN
+from torch_geometric.data import Data
+import torch.nn.functional as F
+from GAT import GATE
 import sklearn.datasets as sd
 import sklearn.model_selection as sms
 import matplotlib.pyplot as plt
@@ -12,80 +13,92 @@ import random
 import time
 
 import torch
-from openpyxl import load_workbook
-import datetime
-from sklearn.preprocessing import StandardScaler
-from sklearn.linear_model import LinearRegression
 from torch import nn
 
 edge_path = 'edge_test_4_A.csv'
 node_path = 'node_test_4_A.csv'
 edge_data = pd.read_csv(edge_path)
 node_data = pd.read_csv(node_path)
-node_mean =node_data.iloc[:, 2:].mean()
-edge_mean =edge_data.iloc[:, 2:4].mean()
-node_stds =node_data.iloc[:, 2:].std()
-edge_stds =edge_data.iloc[:, 2:4].std()
+node_mean = node_data.iloc[:, 2:].mean()
+edge_mean = edge_data.iloc[:, 2:4].mean()
+node_stds = node_data.iloc[:, 2:].std()
+edge_stds = edge_data.iloc[:, 2:4].std()
 node_data.iloc[:, 2:] = node_data.iloc[:, 2:].fillna(node_mean)
 edge_data.iloc[:, 2:] = edge_data.iloc[:, 2:].fillna(edge_mean)
-edge_outliers = (edge_data.iloc[:, 2:4] > edge_mean + 3 * edge_stds) | (edge_data.iloc[:, 2:4] < edge_mean - 3 * edge_stds)
-node_outliers = (node_data.iloc[:, 2:] > node_mean + 3 * node_stds) | (node_data.iloc[:, 2:] < node_mean - 3 * node_stds)
+edge_outliers = (edge_data.iloc[:, 2:4] > edge_mean + 3 * edge_stds) | (
+            edge_data.iloc[:, 2:4] < edge_mean - 3 * edge_stds)
+node_outliers = (node_data.iloc[:, 2:] > node_mean + 3 * node_stds) | (
+            node_data.iloc[:, 2:] < node_mean - 3 * node_stds)
 edge_rows_to_drop = edge_outliers.any(axis=1)
 node_rows_to_drop = node_outliers.any(axis=1)
 node_data = node_data.drop(node_data[node_rows_to_drop].index)
 edge_data = edge_data.drop(edge_data[edge_rows_to_drop].index)
-#按照日期分组
+
+# 按照日期分组
 grouped_node_data = node_data.groupby('date_id')
-#对id进行编码
+# 对id进行编码
 le = preprocessing.LabelEncoder()
-node=[]
-for _,node_data in grouped_node_data:
+node = []
+for _, node_data in grouped_node_data:
     node_data.iloc[:, 0] = le.fit_transform(node_data.iloc[:, 0])
     node.append(node_data.iloc[:, [0] + list(range(2, 37))])
 grouped_edge_data = edge_data.groupby('date_id')
-edge=[]
-for _,edge_data in grouped_edge_data:
+edge = []
+for _, edge_data in grouped_edge_data:
     edge_data.iloc[:, 0] = le.fit_transform(edge_data.iloc[:, 0])
     edge_data.iloc[:, 1] = le.fit_transform(edge_data.iloc[:, 1])
     edge.append(edge_data.iloc[:, 0:4])
-for  i in range(len(edge)):
-    # edge_index = torch.tensor([[1, 2, 3], [0, 0, 0]], dtype=torch.long)  # 2 x E
-    # x = torch.tensor([[1], [3], [4], [5]], dtype=torch.float)  # N x emb(in)
-    # edge_attr = torch.tensor([10, 20, 30], dtype=torch.float)  # E x edge_dim
-    # y = torch.tensor([1, 0, 0, 1])
-    # train_mask = torch.tensor([True, True, True, True], dtype=torch.bool)
-    # val_mask = train_mask
-    # test_mask = train_mask
-    # data = D.Data()
-    # data.x, data.y, data.edge_index, data.edge_attr, data.train_mask, data.val_mask, data.test_mask \
-    #     = x, y, edge_index, edge_attr, train_mask, val_mask, test_mask
-    x=node[i].sort_values(by='geohash_id').iloc[:,1:].values
-    edge_index=edge[i].sort_values(by='geohash6_point1')
-    print(edge_index)
-    edge_attr=edge[i].sort_values(by='geohash6_point1')
+
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+in_size=35
+out_size=2
+edge_weight_dim=2
+model=GATE(in_channels=in_size,out_channels=out_size,edge_weight_dim=edge_weight_dim,num_heads=1)
+
+for i in range(len(edge)):
+    sorted_node = node[i].sort_values(by='geohash_id')
+    x = sorted_node.iloc[:, 1:].values
+    node_num = len(sorted_node)
+    edges = edge[i]
+    # 删除多余的边
+    edges = edges[(edges['geohash6_point1'] < node_num) & (edges['geohash6_point2'] < node_num)]
+    # 边的头结点
+    edge_index1 = edges[['geohash6_point1']].values.astype(int)
+    # 边的尾结点
+    edge_index2 = edges[['geohash6_point2']].values.astype(int)
+    edge_attr = edges[['F_1', 'F_2']].values
     x = torch.FloatTensor(x)
+    edge_index = np.array([edge_index1, edge_index2])
+    edge_index = torch.LongTensor(edge_index)
+    edge_attr = torch.from_numpy(edge_attr).float()
+    print(x.shape)
+    print(edge_index.shape)
+    print(edge_attr.shape)
+    node_emb=model(x,edge_index,edge_attr)
+    print(node_emb)
 
 
-# class MyDataset(Dataset):
-#     def __init__(self, data):
-#         self.data = data
-#
-#     def __getitem__(self, item):
-#         return self.data[item]
-#
-#     def __len__(self):
-#         return len(self.data)
-#
-#
-# def create_sliding_windows(data, window_size):
-#     seq = []
-#     for i in range(len(data) - window_size):
-#         X=data[i:i + window_size]
-#         y=data[i + window_size] # 多维取最后一个为label
-#         X = torch.FloatTensor(X)
-#         y = torch.FloatTensor(y).view(-1)
-#         seq.append((X, y))
-#     return seq
+
+class MyDataset(Dataset):
+    def __init__(self, X, y):
+        self.X = X
+        self.y = y
+
+    def __len__(self):
+        return len(self.X)
+
+    def __getitem__(self, index):
+        return self.X[index], self.y[index]
+
+
+def create_sliding_windows(data, window_size):
+    X,y=[],[]
+    for i in range(len(data) - window_size):
+        X = data[i:i + window_size]
+        y = data[i + window_size]  # 多维取最后一个为label
+        X = torch.FloatTensor(X)
+        y = torch.FloatTensor(y).view(-1)
+    return X,y
 #
 # class LSTM(nn.Module):
 #     def __init__(self, input_size, hidden_size, num_layers, output_size, batch_size):
@@ -113,14 +126,15 @@ for  i in range(len(edge)):
 # #窗口大小
 # window_size = 5
 # batch_size = 3
+# X,y=create_sliding_windows(data,widow_size)
+# dataset=MyDataset(X,y)
+# dataloader=DataLoader(dataset,batch_size=batch_size,shuffle=False)
 #
-#
-# device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 # model = LSTM(batch_size=batch_size, input_size=35, hidden_size=32, num_layers=1, output_size=35)
 # model.to(device)
 # optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 # criterion = nn.MSELoss()
-#
+
 # num_epochs = 100
 # model.train()
 # for epoch in range(num_epochs):
