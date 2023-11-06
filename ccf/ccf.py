@@ -101,6 +101,48 @@ def create_sliding_windows(data, window_size):
         X = torch.FloatTensor(X)
         y = torch.FloatTensor(y).view(-1)
     return X,y
+
+class LSTMModel(nn.Module):
+    def __init__(self, input_size, hidden_size, num_layers, seq_len):
+        super(LSTMModel, self).__init__()
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.seq_len = seq_len
+        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, dropout=0.5)
+        self.linear = nn.Linear(in_features=hidden_size, out_features=1)
+
+    def reset_hidden_state(self):
+        self.hidden = (
+            torch.zeros(self.num_layers, self.seq_len, self.hidden_size),
+            torch.zeros(self.num_layers, self.seq_len, self.hidden_size)
+        )
+
+    def forward(self, sequences):
+        lstm_out, self.hidden = self.lstm(
+            sequences.view(len(sequences), self.seq_len, -1),
+            self.hidden
+        )
+        last_time_step = lstm_out.view(self.seq_len, len(sequences), self.hidden_size)[-1]
+        y_pred = self.linear(last_time_step)
+        return y_pred
+
+def train_model(model, X_train, y_train, num_epochs):
+        loss_fn = torch.nn.MSELoss(reduction='sum')
+        optimiser = torch.optim.Adam(model.parameters(), lr=1e-3)
+        for t in range(num_epochs):
+            model.hidden = model.reset_hidden_state()
+            y_pred = model(X_train)
+            loss = loss_fn(y_pred.float().to(device), y_train)
+
+            optimiser.zero_grad()
+            loss.backward()
+            optimiser.step()
+
+            if t % 10 == 0:
+                print(f'Epoch {t} train loss: {loss.item()}')
+
+        return model.eval()
+
 #
 # class LSTM(nn.Module):
 #     def __init__(self, input_size, hidden_size, num_layers, output_size, batch_size):
