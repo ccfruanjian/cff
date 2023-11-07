@@ -2,18 +2,14 @@ import numpy as np
 import pandas as pd
 from sklearn import preprocessing
 from torch.utils.data import Dataset, DataLoader
+from torch_geometric import nn
 from torch_geometric.data import Data
 import torch.nn.functional as F
 from GAT import GAT
-import sklearn.datasets as sd
-import sklearn.model_selection as sms
-import matplotlib.pyplot as plt
-import math
-import random
-import time
+from LSTM import LSTM
 
 import torch
-from torch import nn
+
 
 edge_path = 'edge_test_4_A.csv'
 node_path = 'node_test_4_A.csv'
@@ -93,38 +89,15 @@ class MyDataset(Dataset):
         return self.X[index], self.y[index]
 
 
-def create_sliding_windows(data, window_size):
+def create_sliding_windows(data,label, window_size):
     X,y=[],[]
     for i in range(len(data) - window_size):
-        X = data[i:i + window_size]
-        y = data[i + window_size]  # 多维取最后一个为label
+        X.append(data[i:i + window_size,:])
+        y.append(label[i + window_size])
         X = torch.FloatTensor(X)
-        y = torch.FloatTensor(y).view(-1)
+        y = torch.FloatTensor(y)
     return X,y
 
-class LSTMModel(nn.Module):
-    def __init__(self, input_size, hidden_size, num_layers, seq_len):
-        super(LSTMModel, self).__init__()
-        self.hidden_size = hidden_size
-        self.num_layers = num_layers
-        self.seq_len = seq_len
-        self.lstm = nn.LSTM(input_size, hidden_size, num_layers, dropout=0.5)
-        self.linear = nn.Linear(in_features=hidden_size, out_features=1)
-
-    def reset_hidden_state(self):
-        self.hidden = (
-            torch.zeros(self.num_layers, self.seq_len, self.hidden_size),
-            torch.zeros(self.num_layers, self.seq_len, self.hidden_size)
-        )
-
-    def forward(self, sequences):
-        lstm_out, self.hidden = self.lstm(
-            sequences.view(len(sequences), self.seq_len, -1),
-            self.hidden
-        )
-        last_time_step = lstm_out.view(self.seq_len, len(sequences), self.hidden_size)[-1]
-        y_pred = self.linear(last_time_step)
-        return y_pred
 
 def train_model(model, X_train, y_train, num_epochs):
         loss_fn = torch.nn.MSELoss(reduction='sum')
@@ -143,28 +116,7 @@ def train_model(model, X_train, y_train, num_epochs):
 
         return model.eval()
 
-#
-# class LSTM(nn.Module):
-#     def __init__(self, input_size, hidden_size, num_layers, output_size, batch_size):
-#         super().__init__()
-#         self.input_size = input_size
-#         self.hidden_size = hidden_size
-#         self.num_layers = num_layers
-#         self.output_size = output_size
-#         self.num_directions = 1 # 单向LSTM
-#         self.batch_size = batch_size
-#         self.lstm = nn.LSTM(self.input_size, self.hidden_size, self.num_layers,batch_first=True)
-#         self.linear = nn.Linear(self.hidden_size, self.output_size)
-#
-#     def forward(self, input_seq):
-#         #input(batch_size,seq_len,input_size)
-#         h_0 = torch.randn(self.num_directions * self.num_layers, self.batch_size, self.hidden_size).to(input_seq.device)
-#         c_0 = torch.randn(self.num_directions * self.num_layers, self.batch_size, self.hidden_size).to(input_seq.device)
-#         # output(batch_size, seq_len, num_directions * hidden_size)
-#         output, _ = self.lstm(input_seq, (h_0, c_0))
-#         output = self.linear(output[:,-1, :])
-#         return output
-#
+
 # #设置随机数种子
 # torch.manual_seed(1234)
 # #窗口大小
@@ -178,7 +130,7 @@ def train_model(model, X_train, y_train, num_epochs):
 # model.to(device)
 # optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 # criterion = nn.MSELoss()
-
+#
 # num_epochs = 100
 # model.train()
 # for epoch in range(num_epochs):
