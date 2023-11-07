@@ -121,7 +121,6 @@ dataset=MyDataset(seq)
 dataloader=DataLoader(dataset,batch_size=batch_size,shuffle=True,drop_last=True)
 input_size=len(data[0])
 out_size=label.shape[1]
-
 model = LSTM(batch_size=batch_size, input_size=input_size, hidden_size=64, num_layers=1, output_size=out_size,device=device)
 model.to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
@@ -130,19 +129,18 @@ criterion = nn.MSELoss()
 num_epochs = 100
 model.train()
 for epoch in range(num_epochs):
-    for data in dataloader:
-        inputs, targets = data
-        inputs, targets = inputs.to(device), targets.to(device)
-
+    for data1 in dataloader:
+        inputs, targets = data1
+        inputs= inputs.to(device)
+        targets = targets.to(device)
         # 前向传播
-        outputs = model(inputs)
-
+        outputs = model(inputs.data)
         # 计算损失
         loss = criterion(outputs, targets)
-
         # 反向传播和优化
         optimizer.zero_grad()
-        loss.backward()
+        loss.requires_grad_(True)
+        loss.backward(retain_graph = True)
         optimizer.step()
 
     # 每个epoch结束后打印损失值
