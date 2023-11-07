@@ -1,5 +1,7 @@
 import numpy as np
 import pandas as pd
+import torch.nn as nn1
+from dask import layers
 from sklearn import preprocessing
 from torch.utils.data import Dataset, DataLoader
 from torch_geometric import nn
@@ -7,6 +9,8 @@ from torch_geometric.data import Data
 import torch.nn.functional as F
 from GAT import GAT
 from LSTM import LSTM
+import sys
+
 
 import torch
 
@@ -115,6 +119,33 @@ def train_model(model, X_train, y_train, num_epochs):
                 print(f'Epoch {t} train loss: {loss.item()}')
 
         return model.eval()
+
+class LSTMModel(nn1.Module):
+    def __init__(self, input_size, hidden_size, num_layers, seq_len):
+        super(LSTMModel, self).__init__()
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.seq_len = seq_len
+        self.lstm = nn1.LSTM(input_size, hidden_size, num_layers, dropout=0.5)
+        self.linear = nn1.Linear(in_features=hidden_size,out_features=1)
+        self.linear1 = nn1.Linear(in_features=hidden_size, out_features=1)
+        self.linear2 = nn1.Linear(in_features=hidden_size, out_features=1)
+
+
+
+
+    def forward(self, int_put):
+        out_put = self.lstm(int_put)
+        out_put = self.fc(out_put)
+        pre1 = self.linear1(out_put)
+        pre2 = self.linear2(out_put)
+        pre1 = pre1[:,-1]
+        pre2 = pre2[:,-2]
+        return [pre2,pre1]
+
+
+
+
 
 
 # #设置随机数种子
