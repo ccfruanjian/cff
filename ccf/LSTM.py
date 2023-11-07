@@ -15,7 +15,7 @@ class LSTM(nn.Module):
         self.lstm = nn.LSTM(self.input_size, self.hidden_size, self.num_layers, batch_first=True)
         # self.fcs = [nn.Linear(self.hidden_size, self.output_size).to(device) for i in range(self.n_outputs)]
         self.fc = nn.Linear(self.hidden_size, self.output_size)
-
+    # 123
     def forward(self, input_seq):
         # print(input_seq.shape)
         batch_size, seq_len = input_seq.shape[0], input_seq.shape[1]
