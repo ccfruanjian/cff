@@ -13,7 +13,7 @@ class LSTM(nn.Module):
         self.n_outputs = n_outputs
         self.batch_size = batch_size
         self.device = device
-        self.lstm = nn.LSTM(self.input_size, self.hidden_size, self.num_layers, batch_first=True)
+        self.lstm = nn.LSTM(self.input_size, self.hidden_size, self.num_layers, batch_first=True,dropout=0.2)
         # self.fcs = [nn.Linear(self.hidden_size, self.output_size).to(device) for i in range(self.n_outputs)]
         self.fc1 = nn.Linear(self.hidden_size, self.output_size)
         self.fc2 = nn.Linear(self.hidden_size, self.output_size)

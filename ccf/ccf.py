@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 import torch.nn as nn1
-from dask import layers
+
 from sklearn import preprocessing
 from torch.utils.data import Dataset, DataLoader
 from torch_geometric import nn
@@ -15,33 +15,36 @@ import sys
 import torch
 
 
-edge_path = 'edge_test_4_A.csv'
-node_path = 'node_test_4_A.csv'
+edge_path = 'edge_90.csv'
+node_path = 'train_90.csv'
 edge_data = pd.read_csv(edge_path)
 node_data = pd.read_csv(node_path)
-node_mean = node_data.iloc[:, 2:].mean()
-edge_mean = edge_data.iloc[:, 2:4].mean()
-node_stds = node_data.iloc[:, 2:].std()
-edge_stds = edge_data.iloc[:, 2:4].std()
-node_data.iloc[:, 2:] = node_data.iloc[:, 2:].fillna(node_mean)
-edge_data.iloc[:, 2:] = edge_data.iloc[:, 2:].fillna(edge_mean)
-edge_outliers = (edge_data.iloc[:, 2:4] > edge_mean + 3 * edge_stds) | (
-            edge_data.iloc[:, 2:4] < edge_mean - 3 * edge_stds)
-node_outliers = (node_data.iloc[:, 2:] > node_mean + 3 * node_stds) | (
-            node_data.iloc[:, 2:] < node_mean - 3 * node_stds)
-edge_rows_to_drop = edge_outliers.any(axis=1)
-node_rows_to_drop = node_outliers.any(axis=1)
-node_data = node_data.drop(node_data[node_rows_to_drop].index)
-edge_data = edge_data.drop(edge_data[edge_rows_to_drop].index)
+# node_mean = node_data.iloc[:, 2:].mean()
+# edge_mean = edge_data.iloc[:, 2:4].mean()
+# node_stds = node_data.iloc[:, 2:].std()
+# edge_stds = edge_data.iloc[:, 2:4].std()
+# node_data.iloc[:, 2:] = node_data.iloc[:, 2:].fillna(node_mean)
+# edge_data.iloc[:, 2:] = edge_data.iloc[:, 2:].fillna(edge_mean)
+# edge_outliers = (edge_data.iloc[:, 2:4] > edge_mean + 3 * edge_stds) | (
+#             edge_data.iloc[:, 2:4] < edge_mean - 3 * edge_stds)
+# node_outliers = (node_data.iloc[:, 2:] > node_mean + 3 * node_stds) | (
+#             node_data.iloc[:, 2:] < node_mean - 3 * node_stds)
+# edge_rows_to_drop = edge_outliers.any(axis=1)
+# node_rows_to_drop = node_outliers.any(axis=1)
+# node_data = node_data.drop(node_data[node_rows_to_drop].index)
+# edge_data = edge_data.drop(edge_data[edge_rows_to_drop].index)
 
 # 按照日期分组
 grouped_node_data = node_data.groupby('date_id')
 # 对id进行编码
 le = preprocessing.LabelEncoder()
 node = []
+label=[]
 for _, node_data in grouped_node_data:
     node_data.iloc[:, 0] = le.fit_transform(node_data.iloc[:, 0])
     node.append(node_data.iloc[:, [0] + list(range(2, 37))])
+    y=torch.FloatTensor(node_data.iloc[:,[-2,-1]].values)
+    label.append(y)
 grouped_edge_data = edge_data.groupby('date_id')
 edge = []
 for _, edge_data in grouped_edge_data:
@@ -57,13 +60,12 @@ num_heads=8
 edge_dim=2
 model=GAT(in_feats=in_size,h_feats=h_size,out_feats=out_size,edge_dim=edge_dim)
 model.to(device)
+X=[]
 for i in range(len(edge)):
     sorted_node = node[i].sort_values(by='geohash_id')
     x = sorted_node.iloc[:, 1:].values
     node_num = len(sorted_node)
     edges = edge[i]
-    # 删除多余的边
-    edges = edges[(edges['geohash6_point1'] < node_num) & (edges['geohash6_point2'] < node_num)]
     # 边的头结点
     edge_index1 = edges[['geohash6_point1']].values.astype(int)
     # 边的尾结点
@@ -77,7 +79,7 @@ for i in range(len(edge)):
     # print(edge_index.shape)
     # print(edge_attr.shape)
     node_emb=model(x,edge_index,edge_attr)
-    print(node_emb)
+
 
 
 
