@@ -19,20 +19,26 @@ edge_path = 'edge_90.csv'
 node_path = 'train_90.csv'
 edge_data = pd.read_csv(edge_path)
 node_data = pd.read_csv(node_path)
-# node_mean = node_data.iloc[:, 2:].mean()
-# edge_mean = edge_data.iloc[:, 2:4].mean()
-# node_stds = node_data.iloc[:, 2:].std()
-# edge_stds = edge_data.iloc[:, 2:4].std()
-# node_data.iloc[:, 2:] = node_data.iloc[:, 2:].fillna(node_mean)
-# edge_data.iloc[:, 2:] = edge_data.iloc[:, 2:].fillna(edge_mean)
-# edge_outliers = (edge_data.iloc[:, 2:4] > edge_mean + 3 * edge_stds) | (
-#             edge_data.iloc[:, 2:4] < edge_mean - 3 * edge_stds)
-# node_outliers = (node_data.iloc[:, 2:] > node_mean + 3 * node_stds) | (
-#             node_data.iloc[:, 2:] < node_mean - 3 * node_stds)
-# edge_rows_to_drop = edge_outliers.any(axis=1)
-# node_rows_to_drop = node_outliers.any(axis=1)
-# node_data = node_data.drop(node_data[node_rows_to_drop].index)
-# edge_data = edge_data.drop(edge_data[edge_rows_to_drop].index)
+node_mean = node_data.iloc[:, 2:].mean()
+edge_mean = edge_data.iloc[:, 2:4].mean()
+node_stds = node_data.iloc[:, 2:].std()
+edge_stds = edge_data.iloc[:, 2:4].std()
+node_data.iloc[:, 2:] = node_data.iloc[:, 2:].fillna(node_mean)
+edge_data.iloc[:, 2:] = edge_data.iloc[:, 2:].fillna(edge_mean)
+for col in node_data.columns[2:]:
+    col_mean = node_data[col].mean()
+    col_std = node_data[col].std()
+    lower_bound = col_mean - 6 * col_std
+    upper_bound = col_mean + 6 * col_std
+    node_data[col] = np.clip(node_data[col], lower_bound, upper_bound)
+
+# 替换边数据中的异常值
+for col in edge_data.columns[2:]:
+    col_mean = edge_data[col].mean()
+    col_std = edge_data[col].std()
+    lower_bound = col_mean - 6 * col_std
+    upper_bound = col_mean + 6 * col_std
+    edge_data[col] = np.clip(edge_data[col], lower_bound, upper_bound)
 
 # 按照日期分组
 grouped_node_data = node_data.groupby('date_id')
