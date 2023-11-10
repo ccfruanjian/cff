@@ -7,12 +7,9 @@ class GAT(torch.nn.Module):
     def __init__(self, in_feats, h_feats, out_feats,edge_dim ):
         super(GAT, self).__init__()
         self.conv1 = GATConv(in_feats, h_feats, heads=8, edge_dim=edge_dim, concat=False)
-        self.conv2 = GATConv(h_feats, out_feats, heads=8,edge_dim=edge_dim, concat=False)
 
     def forward(self, x,edge_index,edge_attr):
         x = self.conv1(x, edge_index, edge_attr)
-        x=F.relu(x)
-        x = self.conv2(x, edge_index, edge_attr)
 
         return x
 # 123
