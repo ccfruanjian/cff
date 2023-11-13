@@ -70,24 +70,13 @@ node_id=le.inverse_transform(node_id)
 #     edge.append(edge_data.iloc[:, 0:4])
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-class MyDataset(Dataset):
-    def __init__(self, data):
-        self.data = data
-
-    def __getitem__(self, item):
-        return self.data[item]
-
-    def __len__(self):
-        return len(self.data)
-
 
 def create_sliding_windows(data,label, window_size):
-    seq=[]
+    x,y=[],[]
     for i in range(len(data) - window_size-4):
-        X=data[i:i + window_size]
-        y=label[i + window_size]
-        seq.append((X,y))
-    return seq
+        x.append(data[i:i + window_size])
+        y.append(label[i + window_size])
+    return np.array(x),np.array(y)
 # model.to(device)
 #设置随机数种子
 torch.manual_seed(1234)
@@ -96,40 +85,39 @@ window_size =7
 batch_size = 1
 #data中的元素表示一个节点的所有信息
 for data,label in zip(node,label):
-    print(data.shape)
-    print(label.shape)
+    x,y= create_sliding_windows(data, label, window_size)
+    # print(x.shape)
+    # print(y.shape)
+    model = LSTM(batch_size=batch_size, input_size=35, hidden_size=150, num_layers=2, output_size=2,device=device)
+    model.to(device)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    criterion = nn.MSELoss()
 
-# print(data.shape)
-
+    num_epochs = 100
+    model.train()
+    for epoch in range(num_epochs):
+        for data1 in dataloader:
+            inputs, targets = data1
+            inputs= inputs.to(device)
+            targets = targets.to(device)
+            # 前向传播
+            outputs = model(inputs.data)
+            # 计算损失
+            loss = criterion(outputs, targets)
+            # 反向传播和优化
+            optimizer.zero_grad()
+            loss.requires_grad_(True)
+            loss.backward(retain_graph = True)
+            optimizer.step()
+        if (epoch + 1) % 10 == 0:
+            print(f'Epoch [{epoch + 1}/{num_epochs}], Loss: {loss.item():.4f}')
 
 
 # seq=create_sliding_windows(data,label,window_size)
 # # print(X.shape)
 # # print(y.shape)
 
-# model = LSTM(batch_size=batch_size, input_size=input_size, hidden_size=150, num_layers=2, output_size=out_size,device=device)
-# model.to(device)
-# optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-# criterion = nn.MSELoss()
-#
-# num_epochs = 80
-# model.train()
-# for epoch in range(num_epochs):
-#     for data1 in dataloader:
-#         inputs, targets = data1
-#         inputs= inputs.to(device)
-#         targets = targets.to(device)
-#         # 前向传播
-#         outputs = model(inputs.data)
-#         # 计算损失
-#         loss = criterion(outputs, targets)
-#         # 反向传播和优化
-#         optimizer.zero_grad()
-#         loss.requires_grad_(True)
-#         loss.backward(retain_graph = True)
-#         optimizer.step()
-#     if (epoch + 1) % 10 == 0:
-#         print(f'Epoch [{epoch + 1}/{num_epochs}], Loss: {loss.item():.4f}')
+
 # model.eval()
 # x=data[-5:,:]
 # x=x.reshape(1,5,-1)
