@@ -16,12 +16,16 @@ class LSTM(nn.Module):
         # self.fcs = [nn.Linear(self.hidden_size, self.output_size).to(device) for i in range(self.n_outputs)]
         self.fc1 = nn.Linear(self.hidden_size*2, self.output_size)
 
-
+    def reset_hidden_state(self):
+        h = torch.zeros(self.num_layers * 2, self.batch_size, self.hidden_size).to(self.device)  # 考虑到双向结构，将 num_directions 乘以 2
+        c = torch.zeros(self.num_layers * 2, self.batch_size, self.hidden_size).to(self.device)  # 同样需要考虑双向结构
+        self.hidden = (h, c)
     def forward(self, input_seq):
         # print(input_seq.shape)
         batch_size, seq_len = input_seq.shape[0], input_seq.shape[1]
-        h_0 = torch.randn(self.num_directions * self.num_layers, batch_size, self.hidden_size).to(self.device)
-        c_0 = torch.randn(self.num_directions * self.num_layers, batch_size, self.hidden_size).to(self.device)
+        h_0 = torch.zeros(self.num_layers * 2, batch_size, self.hidden_size).to(self.device)
+        c_0 = torch.zeros(self.num_layers * 2, batch_size, self.hidden_size).to(self.device)
+        self.hidden = (h_0, c_0)
         # print(input_seq.size())
         # input(batch_size, seq_len, input_size)
         # output(batch_size, seq_len, num_directions * hidden_size)

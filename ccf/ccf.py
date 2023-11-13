@@ -1,7 +1,8 @@
 import numpy as np
 import pandas as pd
+import tensorflow as tf
 import torch.nn as nn1
-
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn import preprocessing
 from torch import nn
 from torch.utils.data import Dataset, DataLoader
@@ -15,7 +16,8 @@ import torch
 # submit_data = pd.read_csv(submit_path)
 # submit_data['geohash_id', 'consumption_level', 'activity_level', 'date_id'] = submit_data['geohash_id consumption_level  activity_level date_id'].str.extract(r'(\w+)\s+(\d+)\s+(\d+)\s+(\d+)')
 # submit_data.to_csv('new_file.csv', index=False)
-
+times_to_pred = 4
+scaler = MinMaxScaler()
 edge_path = 'edge_90.csv'
 node_path = 'train_90.csv'
 edge_data = pd.read_csv(edge_path)
@@ -34,12 +36,12 @@ for col in node_data.columns[2:]:
     node_data[col] = np.clip(node_data[col], lower_bound, upper_bound)
 
 # 替换边数据中的异常值
-for col in edge_data.columns[2:4]:
-    col_mean = edge_data[col].mean()
-    col_std = edge_data[col].std()
-    lower_bound = col_mean - 6 * col_std
-    upper_bound = col_mean + 6 * col_std
-    edge_data[col] = np.clip(edge_data[col], lower_bound, upper_bound)
+# for col in edge_data.columns[2:4]:
+#     col_mean = edge_data[col].mean()
+#     col_std = edge_data[col].std()
+#     lower_bound = col_mean - 6 * col_std
+#     upper_bound = col_mean + 6 * col_std
+#     edge_data[col] = np.clip(edge_data[col], lower_bound, upper_bound)
 
 # 按照id分组
 grouped_node_data = node_data.groupby('geohash_id')
@@ -73,10 +75,27 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 def create_sliding_windows(data,label, window_size):
     x,y=[],[]
-    for i in range(len(data) - window_size-4):
+    for i in range(len(data) - window_size-1):
         x.append(data[i:i + window_size])
         y.append(label[i + window_size])
     return np.array(x),np.array(y)
+def train_model(model, X_train, y_train, num_epochs):
+    loss_fn = torch.nn.MSELoss(reduction='sum')
+    optimiser = torch.optim.Adam(model.parameters(), lr=1e-3)
+    for t in range(num_epochs):
+        model.hidden = model.reset_hidden_state()
+        y_pred = model(X_train)
+        loss = loss_fn(y_pred.float().to(device), y_train)
+
+        optimiser.zero_grad()
+        loss.backward()
+        optimiser.step()
+
+        if t % 10 == 0:
+            print(f'Epoch {t} train loss: {loss.item()}')
+
+    return model.eval()
+
 # model.to(device)
 #设置随机数种子
 torch.manual_seed(1234)
@@ -84,33 +103,43 @@ torch.manual_seed(1234)
 window_size =7
 batch_size = 1
 #data中的元素表示一个节点的所有信息
+res = {}
 for data,label in zip(node,label):
     x,y= create_sliding_windows(data, label, window_size)
-    # print(x.shape)
-    # print(y.shape)
-    model = LSTM(batch_size=batch_size, input_size=35, hidden_size=150, num_layers=2, output_size=2,device=device)
-    model.to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-    criterion = nn.MSELoss()
-
+    x = x.astype(np.float32)
+    y = y.astype(np.float32)
+    x = torch.from_numpy(x)
+    y = torch.from_numpy(y)
+    input_size = 36
+    hidden_size = 150
+    num_layers = 2
+    output_size = 2
     num_epochs = 100
-    model.train()
-    for epoch in range(num_epochs):
-        for data1 in dataloader:
-            inputs, targets = data1
-            inputs= inputs.to(device)
-            targets = targets.to(device)
-            # 前向传播
-            outputs = model(inputs.data)
-            # 计算损失
-            loss = criterion(outputs, targets)
-            # 反向传播和优化
-            optimizer.zero_grad()
-            loss.requires_grad_(True)
-            loss.backward(retain_graph = True)
-            optimizer.step()
-        if (epoch + 1) % 10 == 0:
-            print(f'Epoch [{epoch + 1}/{num_epochs}], Loss: {loss.item():.4f}')
+    LSTM_model = LSTM(batch_size=batch_size, input_size=input_size, hidden_size=hidden_size, num_layers=num_layers, output_size=output_size,device=device)
+    LSTM_model.to(device)
+    x = x.to(device)  # 将训练数据移动到GPU设备
+    y = y.to(device)
+    model = train_model(LSTM_model, x , y , num_epochs)
+    with torch.no_grad():
+        model = model.to(device)
+        model.hidden = (model.hidden[0].cpu(), model.hidden[1].cpu())
+        test_seq = x[-1:].to(device)
+        preds = []
+        for time in range(times_to_pred):
+            y_test_pred = model(test_seq)
+            pred1 = torch.flatten(y_test_pred[0][0]).item()
+            pred2 = torch.flatten(y_test_pred[0][1]).item()
+            preds.append(pred1)
+            preds.append(pred2)
+            new_seq = test_seq.cpu().numpy().flatten()
+            new_seq = np.append(new_seq, [pred1])
+            new_seq = np.append(new_seq, [pred2])
+            test_seq = torch.as_tensor(new_seq).view(1, window_size, 36).float()
+    #     true_cases = scaler.inverse_transform(np.expand_dims(y_test.flatten().numpy(), axis=0)).flatten()
+    predicted_cases = scaler.inverse_transform(np.expand_dims(preds, axis=0)).flatten()
+    print(preds, predicted_cases)
+    res[data] = predicted_cases
+
 
 
 # seq=create_sliding_windows(data,label,window_size)
