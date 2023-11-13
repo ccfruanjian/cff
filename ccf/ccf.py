@@ -86,8 +86,6 @@ def create_sliding_windows(data,label, window_size):
     for i in range(len(data) - window_size-4):
         X=data[i:i + window_size]
         y=label[i + window_size]
-        X=np.array(X)
-        y=np.array(y)
         seq.append((X,y))
     return seq
 # model.to(device)
