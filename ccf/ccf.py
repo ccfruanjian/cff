@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-import tensorflow as tf
 import torch.nn as nn1
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from sklearn import preprocessing
