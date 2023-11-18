@@ -75,8 +75,7 @@ for i in range(len(node)):
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 in_size = 35
-out_size = 100
-h_size = 256
+hidden_size = 50
 num_heads = 8
 edge_dim = 2
 window_size = 7
@@ -94,11 +93,11 @@ def create_sliding_windows(nodes, edges_index, edges_attr, label, window_size):
 
 
 nodes_, edges_index_, edges_attr_, label_ = create_sliding_windows(nodes, edges_index, edges_attr, label, window_size)
-model = GATLSTM(input_size=in_size, hidden_size=64, num_heads=8, num_layers=2, window_size=window_size, device=device)
+model = GATLSTM(input_size=in_size, hidden_size=hidden_size, num_heads=num_heads, num_layers=2, window_size=window_size, device=device)
 model.to(device)
 optimizer = torch.optim.Adam(list(model.parameters()), lr=0.0005)
 criterion = nn.MSELoss()
-num_epochs = 100
+num_epochs = 200
 
 model.train()
 for epoch in range(num_epochs):

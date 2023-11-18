@@ -58,7 +58,7 @@ class GATLSTM(nn.Module):
         self.device = device
         self.window_size = window_size
         self.gat = torch_geometric.nn.GAT(input_size, hidden_size, num_layers=2)
-        self.lstm = LSTM(input_size=72960, hidden_size=280, num_layers=num_layers, output_size=2280,
+        self.lstm = LSTM(input_size=hidden_size*1140, hidden_size=250, num_layers=num_layers, output_size=2280,
                          batch_size=1, device=device)
         # self.fc=nn.Linear(in_features=2,out_features=1)
 
